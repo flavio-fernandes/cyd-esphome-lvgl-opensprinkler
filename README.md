@@ -267,5 +267,5 @@ Explore LVGL widgets in `cyd.yaml`. You can customize your interface further wit
 - [ESPHome + LVGL on cheap touchscreen devices](https://github.com/RyanEwen/esphome-lvgl/tree/main)
 - [ESPHome CYD Touchscreen](https://esphome.io/components/touchscreen/xpt2046.html)
 - [ESPHome CYD Screen](https://esphome.io/components/display/ili9xxx.html#configuration-variables)
-- [Program ESP boards from your browser](https://youtu.be/mj-24SZLQKk?si=YmQzyIjX29PfDJcj)
+- [Program ESP boards from your browser](https://youtu.be/4_hvOWEEASo?si=KQkawsDcuGLggR3P)
 - [ESPHome now supports LVGL](https://youtu.be/8TuYq-6c5ok?si=Vt2xROMBBsuxwaMN)
