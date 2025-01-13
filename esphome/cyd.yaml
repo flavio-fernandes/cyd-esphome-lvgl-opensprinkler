@@ -1,0 +1,1404 @@
+#
+# Basic yaml code to get the ESP32-2432S028R display to work in ESPHome.
+#
+# This yaml displays the controls for the sprinkler
+#
+# NOTE:
+# In order for this to work you need to add the following settings in
+# secrets.yaml:
+# - api_key
+# - ota_password
+# - ap_password
+# - wifi_ssid
+# - wifi_password
+#
+substitutions:
+  # Change this to something unique for each device
+  device_name: yellowtft1
+  friendly_name: Yellow TFT 1
+
+  # Change sprinkler_default_offset to "7" if zone_1 is index 8
+  # in the entities used by opensprinkler integration in home assistant.
+  # You can see the index for each zone under the 'index' attribute of
+  # the 'binary_sensor.zone_X_station_running' entity.
+  sprinkler_default_offset: "7"
+
+# ESPHome naming
+esphome:
+  name: $device_name
+  friendly_name: $friendly_name
+  min_version: 2024.11.0
+  on_boot:
+    - delay: 5s
+    - lvgl.widget.hide: boot_screen
+
+# The ESP32-2432S028R uses a standard ESP32-WROVER, so we use the esp32dev defintion
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_key
+  on_client_connected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.show: lbl_hastatus
+  on_client_disconnected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.hide: lbl_hastatus
+
+# Set OTA password
+ota:
+  platform: esphome
+  password: !secret ota_password
+
+# Setup WiFi credentials
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: $device_name Fallback Hotspot
+    password: !secret ap_password
+
+captive_portal:
+
+image:
+  - file: https://esphome.io/_static/favicon-512x512.png
+    id: boot_logo
+    resize: 200x200
+    type: RGB565
+    use_transparency: true
+
+i2c:
+  - sda: 27
+    scl: 22
+    scan: true
+
+spi:
+  - id: tft
+    clk_pin: 14
+    mosi_pin: 13
+    miso_pin:
+      number: 12
+      ignore_strapping_warning: true
+  - id: touch
+    clk_pin: 25
+    mosi_pin: 32
+    miso_pin: 39
+
+output:
+  - id: backlight_pwm
+    platform: ledc
+    pin: 21
+  - id: output_red
+    platform: ledc
+    pin: 4
+    inverted: true
+  - id: output_green
+    platform: ledc
+    pin: 16
+    inverted: true
+  - id: output_blue
+    platform: ledc
+    pin: 17
+    inverted: true
+
+light:
+  - id: backlight
+    platform: monochromatic
+    output: backlight_pwm
+    name: Display Backlight
+    restore_mode: ALWAYS_ON
+  - id: led
+    platform: rgb
+    name: RGB Led
+    red: output_red
+    green: output_green
+    blue: output_blue
+    restore_mode: ALWAYS_OFF    
+
+display:
+  - id: main_display
+    platform: ili9xxx
+    spi_id: tft
+    cs_pin:
+      number: 15
+      ignore_strapping_warning: true
+    dc_pin:
+      number:  2
+      ignore_strapping_warning: true
+    invert_colors: false
+    # use these for the cyd with usbc
+    # model: ILI9342
+    # rotation: 90
+    # color_order: rgb
+    # use these for the cyd with micro-usb
+    model: ILI9341
+    rotation: 0
+    color_order: bgr
+
+    # lvgl requirements below: update and auto_clear
+    update_interval: never
+    auto_clear_enabled: false
+
+touchscreen:
+  - id: main_touchscreen
+    platform: xpt2046
+    spi_id: touch
+    cs_pin: 33
+    interrupt_pin: 36
+    threshold: 400
+    calibration:
+      x_min: 315
+      x_max: 3785
+      y_min: 222
+      y_max: 3590
+    transform:
+      mirror_x: true
+    on_release:
+      then:
+        - if:
+            condition: lvgl.is_paused
+            then:
+              - lvgl.resume:
+              - lvgl.widget.redraw:
+              - light.turn_on: backlight
+    # on_touch:
+    #   - lambda: |-
+    #         ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
+    #           touch.x,
+    #           touch.y,
+    #           touch.x_raw,
+    #           touch.y_raw
+    #         );
+
+time:
+  - platform: homeassistant
+    id: time_comp
+    timezone: America/New_York
+    on_time_sync:
+      - script.execute: time_update
+    on_time:
+      - minutes: '*'
+        seconds: 0
+        then:
+          - script.execute: time_update
+
+script:
+  - id: time_update
+    then:
+      - lvgl.indicator.update:
+          id: minute_hand
+          value: !lambda |-
+            return id(time_comp).now().minute;
+      - lvgl.indicator.update:
+          id: hour_hand
+          value: !lambda |-
+            auto now = id(time_comp).now();
+            return std::fmod(now.hour, 12) * 60 + now.minute;
+      - lvgl.label.update:
+          id: date_label
+          text: !lambda |-
+            static const char * const mon_names[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+            static char date_buf[8];
+            auto now = id(time_comp).now();
+            snprintf(date_buf, sizeof(date_buf), "%s %2d", mon_names[now.month-1], now.day_of_month);
+            return date_buf;
+      - lvgl.label.update:
+          id: day_label
+          text: !lambda |-
+            static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+            return day_names[id(time_comp).now().day_of_week - 1];
+
+binary_sensor:
+  - platform: status
+    name: Status
+
+  # bathroom_floor_heaters
+  - platform: homeassistant
+    id: ha_master_bathroom_floor_heater_toggle
+    entity_id: input_boolean.master_bathroom_floor_heater_toggle
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+           id: toggle_master_bathroom_floor_heater
+           state:
+             checked: !lambda return x;
+        - lvgl.label.update:
+            id: icon_master_bathroom_floor_heater
+            text: !lambda if (x) { return "\uF0E7"; } return " ";
+  - platform: homeassistant
+    id: ha_hallway_bathroom_floor_heater_toggle
+    entity_id: input_boolean.hallway_bathroom_floor_heater_toggle
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+           id: toggle_hallway_bathroom_floor_heater
+           state:
+             checked: !lambda return x;
+        - lvgl.label.update:
+            id: icon_hallway_bathroom_floor_heater
+            text: !lambda if (x) { return "\uF0E7"; } return " ";
+
+  # rain delay
+  - platform: homeassistant
+    id: ha_opensprinkler_rain_delay
+    entity_id: binary_sensor.opensprinkler_rain_delay_active
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+           id: button_set_rain_delay
+           state:
+             checked: !lambda return x;
+
+  # opensprinkler paused state
+  - platform: homeassistant
+    id: ha_opensprinkler_paused
+    entity_id: binary_sensor.opensprinkler_paused
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+           id: program_button_pause_all_zones
+           state:
+             checked: !lambda return x;
+        - lvgl.widget.update:
+           id: zone_button_pause_all_zones
+           state:
+             checked: !lambda return x;
+
+  # opensprinkler programs state
+  - platform: homeassistant
+    id: ha_opensprinkler_1234_program_enabled
+    entity_id: binary_sensor.1234_program_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+           id: button_1234_program_enabled
+           state:
+             checked: !lambda return x;
+  - platform: homeassistant
+    id: ha_opensprinkler_567_program_enabled
+    entity_id: binary_sensor.567_program_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+           id: button_567_program_enabled
+           state:
+             checked: !lambda return x;
+  - platform: homeassistant
+    id: ha_opensprinkler_8to10_program_enabled
+    entity_id: binary_sensor.8to10_program_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+           id: button_8to10_program_enabled
+           state:
+             checked: !lambda return x;
+  - platform: homeassistant
+    id: ha_opensprinkler_11_program_enabled
+    entity_id: binary_sensor.11_program_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+           id: button_11_program_enabled
+           state:
+             checked: !lambda return x;
+
+  # opensprinkler zones state
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_1_running
+    entity_id: binary_sensor.zone_1_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_1_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  1";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_2_running
+    entity_id: binary_sensor.zone_2_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_2_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  2";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_3_running
+    entity_id: binary_sensor.zone_3_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_3_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  3";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_4_running
+    entity_id: binary_sensor.zone_4_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_4_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  4";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_5_running
+    entity_id: binary_sensor.zone_5_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_5_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  5";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_6_running
+    entity_id: binary_sensor.zone_6_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_6_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  6";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_7_running
+    entity_id: binary_sensor.zone_7_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_7_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  7";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_8_running
+    entity_id: binary_sensor.zone_8_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_8_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  8";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_9_running
+    entity_id: binary_sensor.zone_9_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_9_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone  9";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_10_running
+    entity_id: binary_sensor.zone_10_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_10_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone 10";
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_11_running
+    entity_id: binary_sensor.zone_11_station_running
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.label.update:
+            id: button_zone_11_label
+            text: !lambda if (x) { return "\uF043"; } return "Zone 11";
+
+sensor:
+  - id: wifi_signal_db
+    name: WiFi Signal
+    platform: wifi_signal
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - id: wifi_signal_strength
+    name: WiFi Strength
+    platform: copy
+    source_id: wifi_signal_db
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: IP Address
+      entity_category: diagnostic
+    ssid:
+      name: Connected SSID
+      entity_category: diagnostic
+    mac_address:
+      name: Mac Address
+      entity_category: diagnostic
+
+  # opensprinkler zones status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_1_status
+    entity_id: sensor.zone_1_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_1
+            state: &ha_opensprinkler_zone_status
+              checked: !lambda return (0 != x.compare(std::string{"idle"}));
+              disabled: !lambda return ((0 == x.compare(std::string{"unavailable"})) or (0 == x.compare(std::string{"unknown"})));
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_2_status
+    entity_id: sensor.zone_2_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_2
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_3_status
+    entity_id: sensor.zone_3_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_3
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_4_status
+    entity_id: sensor.zone_4_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_4
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_5_status
+    entity_id: sensor.zone_5_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_5
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_6_status
+    entity_id: sensor.zone_6_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_6
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_7_status
+    entity_id: sensor.zone_7_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_7
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_8_status
+    entity_id: sensor.zone_8_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_8
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_9_status
+    entity_id: sensor.zone_9_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_9
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_10_status
+    entity_id: sensor.zone_10_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_10
+            state: *ha_opensprinkler_zone_status
+  - platform: homeassistant
+    id: ha_opensprinkler_zone_11_status
+    entity_id: sensor.zone_11_station_status
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: button_zone_11
+            state: *ha_opensprinkler_zone_status
+
+lvgl:
+  buffer_size: 25%
+  on_idle:
+    - timeout: 60s
+      then:
+        - lvgl.page.show: main_page
+    - timeout: 120s
+      then:
+        - light.turn_off: backlight
+        - lvgl.pause:
+            show_snow: true
+
+  theme:
+    label:
+      text_font: montserrat_14
+    button:
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_color: 0x0077b3
+      border_width: 1
+      text_color: 0xFFFFFF
+      pressed: # set some button colors to be different in pressed state
+        bg_color: 0x006699
+        bg_grad_color: 0x00334d
+      checked: # set some button colors to be different in checked state
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        text_color: 0xfff300
+    buttonmatrix:
+      bg_opa: TRANSP
+      border_color: 0x0077b3
+      border_width: 0
+      text_color: 0xFFFFFF
+      pad_all: 0
+      items: # set all your buttonmatrix buttons to use your custom defined styles and font
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+        text_font: montserrat_14
+        pressed:
+          bg_color: 0x006699
+          bg_grad_color: 0x00334d
+        checked:
+          bg_color: 0x1d5f96
+          bg_grad_color: 0x03324A
+          text_color: 0x005580
+    switch:
+      bg_color: 0xC0C0C0
+      bg_grad_color: 0xb0b0b0
+      bg_grad_dir: VER
+      bg_opa: COVER
+      checked:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0xFFFFFF
+        bg_grad_color: 0xC0C0C0
+        bg_grad_dir: VER
+        bg_opa: COVER
+    slider:
+      border_width: 1
+      border_opa: 15%
+      bg_color: 0xcccaca
+      bg_opa: 15%
+      indicator:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+  style_definitions:
+    - id: date_style
+      text_font: unscii_8
+      align: center
+      text_color: 0x000000
+      bg_opa: cover
+      radius: 4
+      pad_all: 2
+    - id: header_footer
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_opa: TRANSP
+      radius: 0
+      pad_all: 0
+      pad_row: 0
+      pad_column: 0
+      border_color: 0x0077b3
+      text_color: 0xFFFFFF
+      width: 100%
+      height: 30
+  top_layer:
+    widgets:
+      - label:
+          text: "\uF1EB"
+          id: lbl_hastatus
+          hidden: true
+          align: top_right
+          x: -2
+          y: 7
+          text_align: right
+          text_color: 0xFFFFFF      
+      - buttonmatrix:
+          align: bottom_mid
+          styles: header_footer
+          pad_all: 0
+          outline_width: 0
+          id: top_layer
+          items:
+            styles: header_footer
+          rows:
+            - buttons:
+              - id: page_prev
+                text: "\uF053"
+                on_press:
+                  then:
+                    lvgl.page.previous:
+              - id: page_home
+                text: "\uF015"
+                on_press:
+                  then:
+                    lvgl.page.show: main_page
+              - id: page_next
+                text: "\uF054"
+                on_press:
+                  then:
+                    lvgl.page.next:
+      # make sure boot_screen the last one in this list:
+      - obj:
+          id: boot_screen
+          x: 0
+          y: 0
+          width: 100%
+          height: 100%
+          bg_color: 0xffffff
+          bg_opa: COVER
+          radius: 0
+          pad_all: 0
+          border_width: 0
+          widgets:
+            - image:
+                align: CENTER
+                src: boot_logo
+                y: -40
+            - spinner:
+                align: CENTER
+                y: 95
+                height: 50
+                width: 50
+                spin_time: 1s
+                arc_length: 60deg
+                arc_width: 8
+                indicator:
+                  arc_color: 0x18bcf2
+                  arc_width: 8
+          on_press:
+            - lvgl.widget.hide: boot_screen
+
+  pages:
+    - id: main_page
+      widgets:
+        - obj:
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "Local Time"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+        - obj: # clock container
+            height: SIZE_CONTENT
+            width: 240
+            align: CENTER
+            pad_all: 0
+            border_width: 0
+            bg_color: 0xFFFFFF
+            widgets:
+              - meter: # clock face
+                  height: 220
+                  width: 220
+                  align: CENTER
+                  bg_opa: TRANSP
+                  border_width: 0
+                  text_color: 0x000000
+                  scales:
+                    - range_from: 0 # minutes scale
+                      range_to: 60
+                      angle_range: 360
+                      rotation: 270
+                      ticks:
+                        width: 1
+                        count: 61
+                        length: 10
+                        color: 0x000000
+                      indicators:
+                        - line:
+                            id: minute_hand
+                            width: 3
+                            color: 0xa6a6a6
+                            r_mod: -4
+                            value: 0
+                    - range_from: 1 # hours scale for labels
+                      range_to: 12
+                      angle_range: 330
+                      rotation: 300
+                      ticks:
+                        width: 1
+                        count: 12
+                        length: 1
+                        major:
+                          stride: 1
+                          width: 4
+                          length: 10
+                          color: 0xC0C0C0
+                          label_gap: 12
+                    - range_from: 0 # hi-res hours scale for hand
+                      range_to: 720
+                      angle_range: 360
+                      rotation: 270
+                      ticks:
+                        count: 0
+                      indicators:
+                        - line:
+                            id: hour_hand
+                            width: 5
+                            color: 0xa6a6a6
+                            r_mod: -30
+                            value: 0
+              - label:
+                  styles: date_style
+                  id: day_label
+                  text: "|"  # will get updated
+                  y: -30
+              - label:
+                  id: date_label
+                  styles: date_style
+                  text: " "  # will get updated
+                  y: 30
+
+    - id: zones_page
+      widgets:
+        - obj:
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "Sprinkler Zones"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+        - obj: # a properly placed coontainer object for all these controls
+            align: CENTER
+            width: 240
+            height: 256
+            pad_all: 6
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            layout: # enable the GRID layout for the children widgets
+              type: GRID # split the rows and the columns proportionally
+              grid_columns: [FR(1), FR(1), FR(1)] # equal
+              grid_rows: [FR(25), FR(25), FR(25), FR(25)] # like percents
+            widgets:
+              - button: &button_zone
+                  checkable: true
+                  scrollable: false
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  id: button_zone_1
+                  grid_cell_column_pos: 0 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+                  widgets:
+                    - label: &button_zone_widget_label
+                        id: button_zone_1_label
+                        align: CENTER
+                        text: "."
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data: &button_zone_on_short_click
+                          zone: "1"
+                          is_scheduled: !lambda return !x;
+                          default_offset: !lambda return ${sprinkler_default_offset};
+                  on_click:
+                    # revert the check so it get updated only from the callback we get from
+                    # home assistant later on
+                    - lvgl.widget.update: &button_zone_on_click_revert_checked
+                        id: button_zone_1
+                        state:
+                          checked: !lambda return !x;
+              - button:
+                  <<: *button_zone
+                  id: button_zone_2
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 0
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_2_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "2"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_2
+              - button:
+                  <<: *button_zone
+                  id: button_zone_3
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 0
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_3_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "3"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_3
+              - button:
+                  <<: *button_zone
+                  id: button_zone_4
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_4_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "4"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_4
+              - button:
+                  <<: *button_zone
+                  id: button_zone_5
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 1
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_5_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "5"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_5
+              - button:
+                  <<: *button_zone
+                  id: button_zone_6
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 1
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_6_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "6"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_6
+              - button:
+                  <<: *button_zone
+                  id: button_zone_7
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 2
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_7_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "7"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_7
+              - button:
+                  <<: *button_zone
+                  id: button_zone_8
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 2
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_8_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "8"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_8
+              - button:
+                  <<: *button_zone
+                  id: button_zone_9
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 2
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_9_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "9"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_9
+              - button:
+                  <<: *button_zone
+                  id: button_zone_10
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 3
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_10_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "10"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_10
+              - button:
+                  <<: *button_zone
+                  id: button_zone_11
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 3
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: button_zone_11_label
+                  on_short_click:
+                    - homeassistant.action:
+                        action: script.opensprinkler_run_zone
+                        data:
+                          <<: *button_zone_on_short_click
+                          zone: "11"
+                  on_click:
+                    - lvgl.widget.update:
+                        <<: *button_zone_on_click_revert_checked
+                        id: button_zone_10
+              - button:
+                  checkable: false
+                  scrollable: false
+                  grid_cell_x_align: CENTER
+                  grid_cell_y_align: CENTER
+                  id: zone_button_pause_all_zones
+                  grid_cell_column_pos: 2 # place the widget in
+                  grid_cell_row_pos: 3 # the corresponding cell
+                  widgets:
+                    - label:
+                        <<: *button_zone_widget_label
+                        id: zone_button_pause_all_zones_label
+                        text: "\uF04C"
+                  on_short_click:
+                    - homeassistant.action:
+                        action: opensprinkler.pause_stations
+                        data:
+                          entity_id: switch.opensprinkler_enabled
+                          # Note that if currently paused, the pause duration
+                          # is ignored and sprinkler is unpaused. Exactly the behavior wanted.
+                          # 30 minutes in seconds.
+                          pause_duration: "1800"
+
+    - id: program_page
+      widgets:
+        - obj:
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "Sprinkler Programs"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+
+        - obj: # a properly placed coontainer object for all these controls
+            align: CENTER
+            width: 240
+            height: 256
+            pad_all: 6
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            layout: # enable the GRID layout for the children widgets
+              type: GRID # split the rows and the columns proportionally
+              grid_columns: [FR(1), FR(1), FR(1), FR(1)] # equal
+              grid_rows: [FR(16), FR(42), FR(42)] # like percents
+            widgets:
+              - label: &label_program
+                  long_mode: WRAP
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  text: "Zones 1-4"
+                  grid_cell_column_pos: 0 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+              - button: &button_program
+                  checkable: false
+                  scrollable: false
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  id: button_1234_program_enabled
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  widgets:
+                    - label:
+                        id: button_1234_program_enabled_label
+                        align: CENTER
+                        text: "  \uF04B      1-4"
+                        long_mode: WRAP
+                        width: 40 # Force Wrap
+                  on_short_click:
+                    - homeassistant.action:
+                        action: opensprinkler.run_program
+                        data:
+                          entity_id: switch.1234_program_enabled
+
+              - label:
+                  <<: *label_program
+                  text: "Zones 5-7"
+                  grid_cell_column_pos: 1 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+              - button:
+                  <<: *button_program
+                  id: button_567_program_enabled
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 1
+                  widgets:
+                    - label:
+                        id: button_567_program_enabled_label
+                        align: CENTER
+                        text: "  \uF04B      5-7"
+                        long_mode: WRAP
+                        width: 40 # Force Wrap
+                  on_short_click:
+                    - homeassistant.action:
+                        action: opensprinkler.run_program
+                        data:
+                          entity_id: switch.567_program_enabled
+
+              - label:
+                  <<: *label_program
+                  text: "Zones 8-10"
+                  grid_cell_column_pos: 2 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+              - button:
+                  <<: *button_program
+                  id: button_8to10_program_enabled
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 1
+                  widgets:
+                    - label:
+                        id: button_8to10_program_enabled_label
+                        align: CENTER
+                        text: "  \uF04B       8-10"
+                        long_mode: WRAP
+                        width: 40 # Force Wrap
+                  on_short_click:
+                    - homeassistant.action:
+                        action: opensprinkler.run_program
+                        data:
+                          entity_id: switch.8to10_program_enabled
+
+              - label:
+                  <<: *label_program
+                  text: "Zone 11"
+                  grid_cell_column_pos: 3 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+              - button:
+                  <<: *button_program
+                  id: button_11_program_enabled
+                  grid_cell_column_pos: 3
+                  grid_cell_row_pos: 1
+                  widgets:
+                    - label:
+                        id: button_11_program_enabled_label
+                        align: CENTER
+                        text: "  \uF04B       11"
+                        long_mode: WRAP
+                        width: 40 # Force Wrap
+                  on_short_click:
+                    - homeassistant.action:
+                        action: opensprinkler.run_program
+                        data:
+                          entity_id: switch.11_program_enabled
+
+              - button:
+                  <<: *button_program
+                  id: program_button_pause_all_zones
+                  grid_cell_column_pos: 3
+                  grid_cell_row_pos: 2
+                  widgets:
+                    - label:
+                        id: program_button_pause_all_zones_label
+                        align: CENTER
+                        text: "     \uF04C   PAUSE  ALL"
+                        long_mode: WRAP
+                        width: 50 # Force Wrap
+                  on_short_click:
+                    - homeassistant.action:
+                        action: opensprinkler.pause_stations
+                        data:
+                          entity_id: switch.opensprinkler_enabled
+                          # Note that if currently paused, the pause duration
+                          # is ignored and sprinkler is unpaused. Exactly the behavior wanted.
+                          # 30 minutes in seconds.
+                          pause_duration: "1800"
+              - button:
+                  <<: *button_program
+                  id: button_stop_all_zones
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 2
+                  widgets:
+                    - label:
+                        id: button_stop_all_zones_label
+                        align: CENTER
+                        text: "   \uF04D  STOP  ALL"
+                        long_mode: WRAP
+                        width: 40 # Force Wrap
+                  on_short_click:
+                    - homeassistant.action:
+                        action: opensprinkler.stop
+                        data:
+                          entity_id: switch.opensprinkler_enabled
+
+    - id: rain_delay_page
+      widgets:
+        - obj:
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "Sprinkler Rain Delay Days"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+        - obj: # A container for the delay controls
+            align: CENTER
+            width: 240
+            height: 200
+            layout:
+              type: GRID
+              grid_columns: [FR(17), FR(66), FR(17)]
+              grid_rows: [FR(2), FR(1), FR(1)]
+            widgets:
+              - button:
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: CENTER
+                  grid_cell_column_pos: 0 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+                  id: rain_delay_spinbox_down
+                  on_click:
+                    - lvgl.spinbox.decrement: rain_delay_spinbox
+                  widgets:
+                    - label:
+                          text: "-"
+                          text_align: CENTER
+                          text_font: montserrat_24
+              - spinbox:
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: CENTER
+                  grid_cell_column_pos: 1 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+                  id: rain_delay_spinbox
+                  text_align: CENTER
+                  text_font: montserrat_36
+                  range_from: 0
+                  range_to: 30
+                  step: 1
+                  rollover: false
+                  digits: 2
+                  decimal_places: 0
+                  value: 7  # Default value
+              - button:
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: CENTER
+                  grid_cell_column_pos: 2 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+                  id: rain_delay_spinbox_up
+                  on_click:
+                    - lvgl.spinbox.increment: rain_delay_spinbox
+                  widgets:
+                    - label:
+                        text: "+"
+                        text_align: CENTER
+                        text_font: montserrat_24
+
+              - button:
+                  id: button_set_rain_delay
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  widgets:
+                    - label:
+                        text: "Set Rain Delay"
+                        align: CENTER
+                  on_short_click:
+                    - homeassistant.action:
+                        action: opensprinkler.set_rain_delay
+                        data:
+                          entity_id: switch.opensprinkler_enabled
+                          # rain_delay: !lambda return std::to_string(int(id(rain_delay_spinbox).state) * 24).c_str();
+                          rain_delay: !lambda return int(lv_spinbox_get_value(id(rain_delay_spinbox))) * 24;
+              - button:
+                  id: button_clear_rain_delay
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 2
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  widgets:
+                    - label:
+                        text: "Clear Rain Delay"
+                        align: CENTER
+                  on_short_click:
+                    - lvgl.spinbox.update:
+                        id: rain_delay_spinbox
+                        value: 0
+                    - homeassistant.action:
+                        action: opensprinkler.set_rain_delay
+                        data:
+                          entity_id: switch.opensprinkler_enabled
+                          rain_delay: "0"
+
+    - id: bathroom_floor_heaters_page
+      widgets:
+        - obj:
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "Bathroom Floor Heaters"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+        - obj:
+            align: CENTER
+            width: 240
+            height: 256
+            pad_all: 6
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            layout: # enable the GRID layout for the children widgets
+              type: GRID # split the rows and the columns proportionally
+              grid_columns: [FR(30), FR(60), FR(10)]
+              grid_rows: [FR(20), FR(40), FR(40)]
+            widgets:
+              # Hallway Bathroom Floor Heater
+              - switch:
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  id: toggle_hallway_bathroom_floor_heater
+                  align: CENTER
+                  on_click: &hallway_bathroom_toggle_click
+                    - homeassistant.service:
+                        service: input_boolean.toggle
+                        data:
+                          entity_id: input_boolean.hallway_bathroom_floor_heater_toggle
+              - label:
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 1
+                  align: CENTER
+                  text: "Hallway Bathroom"
+                  long_mode: WRAP
+                  width: 80 # Force Wrap
+                  on_click: *hallway_bathroom_toggle_click
+              - label:
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 1
+                  align: CENTER
+                  id: icon_hallway_bathroom_floor_heater
+                  text: "."
+                  text_font: montserrat_20
+                  on_click: *hallway_bathroom_toggle_click
+
+              # Master Bathroom Floor Heater
+              - switch:
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 2
+                  id: toggle_master_bathroom_floor_heater
+                  align: CENTER
+                  on_click: &master_bathroom_toggle_click
+                    - homeassistant.service:
+                        service: input_boolean.toggle
+                        data:
+                          entity_id: input_boolean.master_bathroom_floor_heater_toggle
+              - label:
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 2
+                  align: CENTER
+                  text: "Master Bathroom"
+                  long_mode: WRAP
+                  width: 80 # Force Wrap
+                  on_click: *master_bathroom_toggle_click
+              - label:
+                  id: icon_master_bathroom_floor_heater
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 2
+                  align: CENTER
+                  text: "."
+                  text_font: montserrat_20
+                  on_click: *master_bathroom_toggle_click

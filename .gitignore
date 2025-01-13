@@ -1,0 +1,5 @@
+.venv
+esphome/secrets.yaml
+.DS_Store
+esphome/.esphome/
+homeassistant/secrets.yaml
