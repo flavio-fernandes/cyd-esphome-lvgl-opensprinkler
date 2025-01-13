@@ -1,0 +1,10 @@
+hallway_bathroom_floor_heater_toggle:
+  name: Hallway Bathroom Floor Heater
+  initial: off
+  icon: mdi:radiator
+
+master_bathroom_floor_heater_toggle:
+  name: Master Bathroom Floor Heater
+  initial: off
+  icon: mdi:radiator
+

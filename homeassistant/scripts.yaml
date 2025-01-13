@@ -1,0 +1,27 @@
+opensprinkler_run_zone:
+  alias: Opensprinkler Run Zone
+  sequence:
+  - target:
+      entity_id: switch.opensprinkler_enabled
+    data:
+      continue_running_stations: true
+      run_seconds:
+      - index: '{{ zone | int + (default_offset | default(0) | int) }}'
+        run_seconds: "{% if is_scheduled | int == 0 %}\n  3600\n{% else %}\n  0\n{%
+          endif %}\n"
+    action: opensprinkler.run_once
+  fields:
+    zone:
+      description: Zone number to control (base index from ESPHome)
+      example: 1
+      required: true
+    is_scheduled:
+      description: Whether the zone is currently scheduled to run or running
+      example: 0
+      required: true
+    default_offset:
+      description: Offset to calculate the final index
+      example: 7
+      required: false
+  description: Run or stop a sprinkler zone based on zone number and checked parameters
+
