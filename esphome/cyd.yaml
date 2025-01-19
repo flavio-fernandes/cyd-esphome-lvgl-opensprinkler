@@ -328,7 +328,7 @@ binary_sensor:
   # opensprinkler zones state
   - platform: homeassistant
     id: ha_opensprinkler_zone_1_running
-    entity_id: binary_sensor.zone_1_station_running
+    entity_id: binary_sensor.zone_1_front_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -337,7 +337,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  1";
   - platform: homeassistant
     id: ha_opensprinkler_zone_2_running
-    entity_id: binary_sensor.zone_2_station_running
+    entity_id: binary_sensor.zone_2_cherry_tree_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -346,7 +346,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  2";
   - platform: homeassistant
     id: ha_opensprinkler_zone_3_running
-    entity_id: binary_sensor.zone_3_station_running
+    entity_id: binary_sensor.zone_3_curb_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -355,7 +355,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  3";
   - platform: homeassistant
     id: ha_opensprinkler_zone_4_running
-    entity_id: binary_sensor.zone_4_station_running
+    entity_id: binary_sensor.zone_4_empty_hill_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -364,7 +364,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  4";
   - platform: homeassistant
     id: ha_opensprinkler_zone_5_running
-    entity_id: binary_sensor.zone_5_station_running
+    entity_id: binary_sensor.zone_5_yli_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -373,7 +373,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  5";
   - platform: homeassistant
     id: ha_opensprinkler_zone_6_running
-    entity_id: binary_sensor.zone_6_station_running
+    entity_id: binary_sensor.zone_6_ubaldo_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -382,7 +382,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  6";
   - platform: homeassistant
     id: ha_opensprinkler_zone_7_running
-    entity_id: binary_sensor.zone_7_station_running
+    entity_id: binary_sensor.zone_7_mailbox_curb_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -391,7 +391,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  7";
   - platform: homeassistant
     id: ha_opensprinkler_zone_8_running
-    entity_id: binary_sensor.zone_8_station_running
+    entity_id: binary_sensor.zone_8_garage_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -400,7 +400,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  8";
   - platform: homeassistant
     id: ha_opensprinkler_zone_9_running
-    entity_id: binary_sensor.zone_9_station_running
+    entity_id: binary_sensor.zone_9_green_shed_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -409,7 +409,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone  9";
   - platform: homeassistant
     id: ha_opensprinkler_zone_10_running
-    entity_id: binary_sensor.zone_10_station_running
+    entity_id: binary_sensor.zone_10_white_shed_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -418,7 +418,7 @@ binary_sensor:
             text: !lambda if (x) { return "\uF043"; } return "Zone 10";
   - platform: homeassistant
     id: ha_opensprinkler_zone_11_running
-    entity_id: binary_sensor.zone_11_station_running
+    entity_id: binary_sensor.zone_11_ac_unit_station_running
     trigger_on_initial_state: true
     on_state:
       then:
@@ -460,7 +460,7 @@ text_sensor:
   # opensprinkler zones status
   - platform: homeassistant
     id: ha_opensprinkler_zone_1_status
-    entity_id: sensor.zone_1_station_status
+    entity_id: sensor.zone_1_front_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -470,7 +470,7 @@ text_sensor:
               disabled: !lambda return ((0 == x.compare(std::string{"unavailable"})) or (0 == x.compare(std::string{"unknown"})));
   - platform: homeassistant
     id: ha_opensprinkler_zone_2_status
-    entity_id: sensor.zone_2_station_status
+    entity_id: sensor.zone_2_cherry_tree_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -478,7 +478,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_3_status
-    entity_id: sensor.zone_3_station_status
+    entity_id: sensor.zone_3_curb_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -486,7 +486,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_4_status
-    entity_id: sensor.zone_4_station_status
+    entity_id: sensor.zone_4_empty_hill_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -494,7 +494,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_5_status
-    entity_id: sensor.zone_5_station_status
+    entity_id: sensor.zone_5_yli_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -502,7 +502,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_6_status
-    entity_id: sensor.zone_6_station_status
+    entity_id: sensor.zone_6_ubaldo_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -510,7 +510,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_7_status
-    entity_id: sensor.zone_7_station_status
+    entity_id: sensor.zone_7_mailbox_curb_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -518,7 +518,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_8_status
-    entity_id: sensor.zone_8_station_status
+    entity_id: sensor.zone_8_garage_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -526,7 +526,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_9_status
-    entity_id: sensor.zone_9_station_status
+    entity_id: sensor.zone_9_green_shed_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -534,7 +534,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_10_status
-    entity_id: sensor.zone_10_station_status
+    entity_id: sensor.zone_10_white_shed_station_status
     on_value:
       then:
         - lvgl.widget.update:
@@ -542,7 +542,7 @@ text_sensor:
             state: *ha_opensprinkler_zone_status
   - platform: homeassistant
     id: ha_opensprinkler_zone_11_status
-    entity_id: sensor.zone_11_station_status
+    entity_id: sensor.zone_11_ac_unit_station_status
     on_value:
       then:
         - lvgl.widget.update:
