@@ -432,6 +432,8 @@ sensor:
     platform: wifi_signal
     update_interval: 60s
     entity_category: diagnostic
+    unit_of_measurement: "dBm"  # Ensure this one stays as dBm
+    device_class: signal_strength
 
   - id: wifi_signal_strength
     name: WiFi Strength
@@ -441,6 +443,7 @@ sensor:
       - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
     unit_of_measurement: "%"
     entity_category: diagnostic
+    # Do NOT set device_class here, Home Assistant doesn't support "%" for signal_strength
 
 text_sensor:
   - platform: wifi_info
