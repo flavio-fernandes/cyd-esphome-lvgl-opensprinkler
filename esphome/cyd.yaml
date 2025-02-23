@@ -80,7 +80,7 @@ image:
     id: boot_logo
     resize: 200x200
     type: RGB565
-    use_transparency: true
+    transparency: chroma_key
 
 i2c:
   - sda: 27
