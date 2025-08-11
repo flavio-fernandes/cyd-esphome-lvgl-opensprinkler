@@ -128,7 +128,7 @@ light:
     red: output_red
     green: output_green
     blue: output_blue
-    restore_mode: ALWAYS_OFF    
+    restore_mode: ALWAYS_OFF
 
 display:
   - id: main_display
@@ -231,7 +231,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_master_bathroom_floor_heater_toggle
     entity_id: input_boolean.master_bathroom_floor_heater_toggle
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.widget.update:
@@ -244,7 +244,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_hallway_bathroom_floor_heater_toggle
     entity_id: input_boolean.hallway_bathroom_floor_heater_toggle
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.widget.update:
@@ -259,7 +259,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_rain_delay
     entity_id: binary_sensor.opensprinkler_rain_delay_active
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.widget.update:
@@ -271,7 +271,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_paused
     entity_id: binary_sensor.opensprinkler_paused
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.widget.update:
@@ -287,7 +287,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_1234_program_enabled
     entity_id: binary_sensor.1234_program_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.widget.update:
@@ -297,7 +297,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_567_program_enabled
     entity_id: binary_sensor.567_program_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.widget.update:
@@ -307,7 +307,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_8to10_program_enabled
     entity_id: binary_sensor.8to10_program_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.widget.update:
@@ -317,7 +317,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_11_program_enabled
     entity_id: binary_sensor.11_program_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.widget.update:
@@ -329,7 +329,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_1_running
     entity_id: binary_sensor.zone_1_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -338,7 +338,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_2_running
     entity_id: binary_sensor.zone_2_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -347,7 +347,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_3_running
     entity_id: binary_sensor.zone_3_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -356,7 +356,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_4_running
     entity_id: binary_sensor.zone_4_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -365,7 +365,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_5_running
     entity_id: binary_sensor.zone_5_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -374,7 +374,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_6_running
     entity_id: binary_sensor.zone_6_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -383,7 +383,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_7_running
     entity_id: binary_sensor.zone_7_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -392,7 +392,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_8_running
     entity_id: binary_sensor.zone_8_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -401,7 +401,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_9_running
     entity_id: binary_sensor.zone_9_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -410,7 +410,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_10_running
     entity_id: binary_sensor.zone_10_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -419,7 +419,7 @@ binary_sensor:
   - platform: homeassistant
     id: ha_opensprinkler_zone_11_running
     entity_id: binary_sensor.zone_11_station_running
-    publish_initial_state: true
+    trigger_on_initial_state: true
     on_state:
       then:
         - lvgl.label.update:
@@ -436,7 +436,7 @@ sensor:
     device_class: signal_strength
 
   - id: wifi_signal_strength
-    name: WiFi Strength
+    name: WiFi Strength Percent
     platform: copy
     source_id: wifi_signal_db
     filters:
@@ -666,7 +666,7 @@ lvgl:
           x: -2
           y: 7
           text_align: right
-          text_color: 0xFFFFFF      
+          text_color: 0xFFFFFF
       - buttonmatrix:
           align: bottom_mid
           styles: header_footer
