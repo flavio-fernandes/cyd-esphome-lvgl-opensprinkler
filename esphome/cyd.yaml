@@ -76,11 +76,11 @@ wifi:
 captive_portal:
 
 image:
-  - file: https://esphome.io/_static/favicon-512x512.png
+  - file: https://esphome.io/images/logo.png
     id: boot_logo
     resize: 200x200
     type: RGB565
-    transparency: chroma_key
+    transparency: alpha_channel
 
 i2c:
   - sda: 27
