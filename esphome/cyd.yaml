@@ -1044,7 +1044,7 @@ lvgl:
                   on_click:
                     - lvgl.widget.update:
                         <<: *button_zone_on_click_revert_checked
-                        id: button_zone_10
+                        id: button_zone_11
               - button:
                   checkable: false
                   scrollable: false
@@ -1271,11 +1271,11 @@ lvgl:
                   text_font: montserrat_36
                   range_from: 0
                   range_to: 30
-                  step: 1
                   rollover: false
                   digits: 2
                   decimal_places: 0
                   value: 7  # Default value
+                  selected_digit: 0    # 0 = ones digit, makes +/- change by 1
               - button:
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: CENTER
@@ -1305,8 +1305,10 @@ lvgl:
                         action: opensprinkler.set_rain_delay
                         data:
                           entity_id: switch.opensprinkler_enabled
-                          # rain_delay: !lambda return std::to_string(int(id(rain_delay_spinbox).state) * 24).c_str();
-                          rain_delay: !lambda return int(lv_spinbox_get_value(id(rain_delay_spinbox))) * 24;
+                          # rain_delay: !lambda return int(lv_spinbox_get_value(id(rain_delay_spinbox))) * 24;
+                          rain_delay: !lambda |-
+                            int hours = (int) lv_spinbox_get_value(id(rain_delay_spinbox)) * 24;
+                            return to_string(hours);
               - button:
                   id: button_clear_rain_delay
                   grid_cell_column_pos: 1
