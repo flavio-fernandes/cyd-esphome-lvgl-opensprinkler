@@ -442,6 +442,7 @@ sensor:
     filters:
       - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
     unit_of_measurement: "%"
+    device_class: ""
     entity_category: diagnostic
     # Do NOT set device_class here, Home Assistant doesn't support "%" for signal_strength
 
