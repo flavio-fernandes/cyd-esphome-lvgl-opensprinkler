@@ -766,7 +766,7 @@ lvgl:
                             id: minute_hand
                             width: 3
                             color: 0xa6a6a6
-                            r_mod: -4
+                            length: -4
                             value: 0
                     - range_from: 1 # hours scale for labels
                       range_to: 12
@@ -786,14 +786,12 @@ lvgl:
                       range_to: 720
                       angle_range: 360
                       rotation: 270
-                      ticks:
-                        count: 0
                       indicators:
                         - line:
                             id: hour_hand
                             width: 5
                             color: 0xa6a6a6
-                            r_mod: -30
+                            length: -30
                             value: 0
               - label:
                   styles: date_style
