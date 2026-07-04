@@ -446,6 +446,58 @@ sensor:
     entity_category: diagnostic
     # Do NOT set device_class here, Home Assistant doesn't support "%" for signal_strength
 
+  # dining room thermostat
+  - platform: homeassistant
+    id: ha_dining_room_temperature
+    entity_id: sensor.dining_room_temperature
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: dining_current_temp_label
+            text: !lambda |-
+              static char buf[16];
+              if (std::isnan(x)) {
+                return "-- F";
+              }
+              snprintf(buf, sizeof(buf), "%.0f F", x);
+              return buf;
+  - platform: homeassistant
+    id: ha_dining_room_humidity
+    entity_id: sensor.dining_room_humidity
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: dining_humidity_label
+            text: !lambda |-
+              static char buf[16];
+              if (std::isnan(x)) {
+                return "--%";
+              }
+              snprintf(buf, sizeof(buf), "%.0f%%", x);
+              return buf;
+  - platform: homeassistant
+    id: ha_dining_room_target_temperature
+    entity_id: climate.dining_room
+    attribute: temperature
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: dining_target_label
+            text: !lambda |-
+              static char buf[16];
+              if (std::isnan(x)) {
+                return "-- F";
+              }
+              snprintf(buf, sizeof(buf), "%.0f F", x);
+              return buf;
+        - lvgl.spinbox.update:
+            id: dining_target_spinbox
+            value: !lambda |-
+              if (std::isnan(x)) {
+                return 72;
+              }
+              return (int) std::round(x);
+
 text_sensor:
   - platform: wifi_info
     ip_address:
@@ -457,6 +509,31 @@ text_sensor:
     mac_address:
       name: Mac Address
       entity_category: diagnostic
+
+  # dining room thermostat
+  - platform: homeassistant
+    id: ha_dining_room_hvac_mode
+    entity_id: climate.dining_room
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: dining_mode_label
+            text: !lambda |-
+              static char buf[24];
+              snprintf(buf, sizeof(buf), "Mode: %s", x.c_str());
+              return buf;
+  - platform: homeassistant
+    id: ha_dining_room_hvac_action
+    entity_id: climate.dining_room
+    attribute: hvac_action
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: dining_action_label
+            text: !lambda |-
+              static char buf[28];
+              snprintf(buf, sizeof(buf), "Action: %s", x.c_str());
+              return buf;
 
   # opensprinkler zones status
   - platform: homeassistant
@@ -803,6 +880,180 @@ lvgl:
                   styles: date_style
                   text: " "  # will get updated
                   y: 30
+
+    - id: thermostat_page
+      widgets:
+        - obj:
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "Dining Room Thermostat"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+        - obj:
+            align: CENTER
+            width: 240
+            height: 256
+            pad_all: 6
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            layout:
+              type: GRID
+              grid_columns: [FR(1), FR(1), FR(1), FR(1)]
+              grid_rows: [FR(36), FR(12), FR(12), FR(24), FR(16)]
+            widgets:
+              - obj:
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_column_span: 2
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  pad_all: 4
+                  bg_color: 0xF6FAFF
+                  bg_opa: COVER
+                  border_color: 0xB8D7F0
+                  border_width: 1
+                  radius: 6
+                  widgets:
+                    - label:
+                        text: "Current"
+                        align: TOP_MID
+                        y: 4
+                        text_color: 0x3B4A54
+                    - label:
+                        id: dining_current_temp_label
+                        text: "-- F"
+                        align: CENTER
+                        y: 8
+                        text_font: montserrat_36
+                        text_color: 0x143C5A
+              - obj:
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 0
+                  grid_cell_column_span: 2
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  pad_all: 4
+                  bg_color: 0xFFF8EC
+                  bg_opa: COVER
+                  border_color: 0xE6CC9A
+                  border_width: 1
+                  radius: 6
+                  widgets:
+                    - label:
+                        text: "Humidity"
+                        align: TOP_MID
+                        y: 4
+                        text_color: 0x4F4637
+                    - label:
+                        id: dining_humidity_label
+                        text: "--%"
+                        align: CENTER
+                        y: 8
+                        text_font: montserrat_36
+                        text_color: 0x5C4118
+              - label:
+                  id: dining_mode_label
+                  text: "Mode: --"
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  grid_cell_column_span: 2
+                  grid_cell_x_align: CENTER
+                  grid_cell_y_align: CENTER
+                  text_color: 0x2E3A44
+              - label:
+                  id: dining_action_label
+                  text: "Action: --"
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 1
+                  grid_cell_column_span: 2
+                  grid_cell_x_align: CENTER
+                  grid_cell_y_align: CENTER
+                  text_color: 0x2E3A44
+              - label:
+                  text: "Target"
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 2
+                  grid_cell_column_span: 2
+                  grid_cell_x_align: CENTER
+                  grid_cell_y_align: CENTER
+                  text_color: 0x2E3A44
+              - label:
+                  id: dining_target_label
+                  text: "-- F"
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 2
+                  grid_cell_column_span: 2
+                  grid_cell_x_align: CENTER
+                  grid_cell_y_align: CENTER
+                  text_font: montserrat_20
+                  text_color: 0x143C5A
+              - button:
+                  id: dining_target_down
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 3
+                  grid_cell_column_span: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  on_click:
+                    - lvgl.spinbox.decrement: dining_target_spinbox
+                  widgets:
+                    - label:
+                        text: "-"
+                        align: CENTER
+                        text_font: montserrat_24
+              - spinbox:
+                  id: dining_target_spinbox
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 3
+                  grid_cell_column_span: 2
+                  grid_cell_x_align: CENTER
+                  grid_cell_y_align: CENTER
+                  width: 98
+                  text_align: CENTER
+                  text_font: montserrat_36
+                  range_from: 50
+                  range_to: 90
+                  rollover: false
+                  digits: 2
+                  decimal_places: 0
+                  value: 72
+                  selected_digit: 0
+              - button:
+                  id: dining_target_up
+                  grid_cell_column_pos: 3
+                  grid_cell_row_pos: 3
+                  grid_cell_column_span: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  on_click:
+                    - lvgl.spinbox.increment: dining_target_spinbox
+                  widgets:
+                    - label:
+                        text: "+"
+                        align: CENTER
+                        text_font: montserrat_24
+              - button:
+                  id: dining_set_target
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 4
+                  grid_cell_column_span: 4
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  widgets:
+                    - label:
+                        text: "Set Target"
+                        align: CENTER
+                  on_short_click:
+                    - homeassistant.action:
+                        action: climate.set_temperature
+                        data:
+                          entity_id: climate.dining_room
+                          temperature: !lambda |-
+                            int target = (int) lv_spinbox_get_value(id(dining_target_spinbox));
+                            return to_string(target);
 
     - id: zones_page
       widgets:
